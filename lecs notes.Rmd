@@ -1,0 +1,834 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-08-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Lecs/Tuts
+
+## Test Statistic
+
+Find test statistic. The difference between the data and the expected measure model.
+This dataset is the percentage of people in categories business, gov, education, home using tablets in an old survey, as well as the count of people in a current survey. We are checking if the distributions match.
+
+```{r}
+y_i = c(102, 32, 12, 4)
+p_i = c(0.69, 0.21, 0.07, 0.03)
+n = sum(y_i)
+e_i = n * p_i
+t0 = sum((y_i-e_i)^2/e_i)
+t0
+```
+
+## Chi Squared
+
+In order to use a chi squared test, all the expected data points need to be >=5. 
+To test for this, print out the e_i. 
+
+```{r}
+y_i = c(102, 32, 12, 4)
+p_i = c(0.69, 0.21, 0.07, 0.03)
+n = sum(y_i)
+e_i = n * p_i
+e_i
+```
+
+If there is a datapoint <5, reaggregate the datapoints to get an larger datapoint, at the cost of a category. Here, we will use the last 2 columns. As we are using the tablet use data, we can merge education and home.
+
+Using the pchisq func, the second param is degrees of freedom. 
+```{r}
+y_i = c(102, 32, 12 + 4)
+p_i = c(0.69, 0.21, 0.07 + 0.03)
+n = sum(y_i)
+e_i = n * p_i
+t0 = sum((y_i-e_i)^2/e_i)
+chis = pchisq(t0, 2)
+```
+
+This result gives the probability that the chi squared is greater/more extreme than the expected. /The probability that the datasets are completely unrelated. Therefore, we need 1-chi to find the p of them being related.
+
+```{r}
+1-chis
+```
+p is close to 1, so the data is close to the expected.
+
+
+#Week 3
+
+#L07
+
+## Standard errors and confidence intervals for odds ratios
+Definition: Odds Ratios - measure of the association between an exposure and an outcome.
+
+Definition: prospective study - looking into future, based on current exposre/factors
+           retrospective study - cohort of individuals with the outcome, looking at past factors
+Odds ratio is usable in prospective and retrospective study
+With odds ratios, what is the threshold to say an odds ratio is useful? eg 0.55
+odds ratio of 1 indicates there is zero relationship
+We will use a confidence interval. 
+confidence interval for a sample mean: x +- Z * SE(x)
+  z is critical value from normal or T distribution * standard error of x
+    SE(x) = sample standard dev / sqrt(n)
+  the z component the chosen z score
+    z score is the standard deviation for that confidence percentage
+      .99 is 2.58 standard deviations, .95 is 1.96 stddev, .90 is 1.645
+      can be found in R with the percentage outside * 2
+        qnorm(0.025)
+  
+Log odds scale
+odds ratio is usually (0,infinity) with the neutral value being 1, but log odds ratio gives a more symmetric distribution centered at 0.
+We can swap the x in the confidence interval formula for log(x) for the log odds ratio. 
+
+Example OR = .55, log(.55) = -0.6
+The SE = sqrt(1/104 + 1/189 + 1/10933 + 1/10845) = 0.12
+x +- Z*SE(x) where Z 95% confidence interval
+-> 
+-.06 +- 1.96 * .12
+= (-.84, -.36)
+taking the exponent of these two decimals converts them back from log
+(e^-.84,e^-.36)
+= (.43, .69)
+
+relating this back, we would have a null hypothesis that OR = 1. Our OR = .55, so we reject the null hypothesis, as it not in the range of the confidence interval. Same for the log odds, 0 is not in the log OR. 
+This means that the odds of an individual having the outcome given the exposure is about .55, or flipped, an individual without the exposure is 50% more likely to have the outcome. This result is significant at 5% level of signifcance, because the confidence interval does not contain the null hypothesis.
+
+##Testing for homogeniety
+
+COVID treatments w plasma: 
+          died discharged censored total
+  plasma   : 5 28 6 39
+  no plasma: 38 104 30 156
+  total: 43 132 20 105
+
+We want to answer was the proportion of deaths/survived different between the plasma treated patients vs no plasma?
+Null hypothesis is there is no effect, the proportion is the same.
+
+Two way contingency table
+                  died survived total
+plasma treatment: 5     28       33
+no plasma treat : 38    104      142
+                  43    132      175
+
+
+```{r}
+#This filters out all rows where col_name is "Undesired result"
+#dataset = data %>% filter(column_name != "Undesired result")
+  
+```
+
+##Dot notation subscripts for tables
+When you see y1., take that as 'for all columns in y row 1'. Similarly z.2 'for all rows in column 2 in y'.
+
+##Chi squared test of homogeniety
+Using observed and expected counts of a table, we can make a chisq test statistic.
+Pseudo: foreach cell: (observed - expected)^2 /expected
+expected = row total * col total / overall total.
+  totals = sum of individual row or col, overall is sum all rows.
+Note this is a test with 1 degree of freedom, because (r-1)*(c-1). 
+
+For the plasma/COVID table, the t0 = 1.9. 
+The p-value = 0.16. Take a chisq with 1degree curve, and look at at the area under the curve from 1.9 and greater. In this curve, it is relatively significant, at .16. 
+Given that the p-val is reasonably large, so there is a reasonable probability that the null hypothesis is correct, ie, plasma treatment has no solid impact. 
+
+For a table bigger than 2x2, its the exact same, except the degrees of freedom are (r-1)*(c-1).
+
+```{r}
+#Voting preference example: H0: approve/not is the same across labor and lib voters.
+y = c(62, 47, 29, 46, 9, 7)
+n = sum(y)
+tab = matrix(y, nrow = 2, ncol = 3)
+colnames(tab) = c("Approve", "Not approve", "No comment")
+rownames(tab) = c("Labor", "Lib")
+tab
+chisq.test(tab)
+#pval = .045, under the .05 threshold, so we can reject H0.
+```
+
+#L08
+
+##Testing for independence
+Take a sample from a population, and ask 2 questions, and check if the answers are related.
+(Contrast with homogeneity, where we take 2 sample populations and ask 1 question)
+We use a contingency table, pretty much the same as in homogeneity. 
+Mathematically can say P(x | y) = P(x). Other ways to write it too.
+Again, use chisq.test(table, correct=FALSE)
+
+##Degrees of freedom
+Indicates the number of independent values that can vary in the sample. 
+df = n of categories - 1 - n of parameters
+
+
+#L09
+
+##Fisher's Exact Test
+Most tests require expected counts to be >5, so that we can guarantee the test statistic follows are chisq distribution. Sometimes we don't have alot of data, and the samples are all/partially less than 5.
+This test determines if there is an association between two categories, where there is a 2x2 table, and or expected counts are <5. 
+Attempting to use chisq.test() will generate a warning saying the cell counts aren't great enough.
+
+fisher.test()
+
+We are looking for the probability/p-value of getting a table with a top left value that is more extreme than the observed table. This will necessitate reducing the number in the top right, to keep the total population the same. So if the p-value is reasonably big, there's a good chance of getting a more extreme result, indicating that the observed result is within the bounds of H0. 
+
+##Yates chisq
+When we run chisq.test(), there's a parameter for correct="TRUE" or "FALSE". This changes the chisq test to include Yates' correction. Yates' correction introduces a -.5 to all differences between observed and expected cell counts. This is so that the approximation is marginally better with an extra 0.5. 
+
+
+##Monte Carlo Test
+For a contingency table where we know the observed values are >5, we can generate a bunch of randomised contingency tables with the row and col totals, so that all of the generated tables are comparable. 
+
+```{r}
+row_tot = 3
+col_tot = 4.7
+b = 100
+set.seed(123)
+#r2dtable: Random 2D table
+table_list = r2dtable(n = b, r=row_tot, c = col_tot)
+
+rnd.chisq = numeric(b)
+for (i in 1:b) {
+  rnd.chisq[i] = suppressWarnings(chisq.test(table_list[[i]])$statistic)
+}
+sum(rnd.chisq >= 6)/b
+
+#can also use chisq.test with parameter (simulated.p.value = "TRUE")
+```
+
+
+#L10
+
+##Testing Means
+
+##One sample t-test
+A t-test is used to determine if there is a significant difference between the means of two groups. 
+These groups could be a sample and a population, two samples, etc. 
+
+Demo example: actual mL of beer in a 6 pack, stated 375mL per.
+```{r}
+y = c(374.8, 375.0, 375.3, 374.8, 374.4, 374.9)
+length(y)
+t.test(y, mu = 375, alternative="less")
+#p-value is large-ish = 0.15, so we don't reject H0.
+```
+
+##Two sample t-test
+What if we are testing the population mean for two samples that are different?
+The 2 could be independent, or related in some way, eg a before and after.
+
+
+# L11
+
+## Random Vars
+Just random variables. The expectation of a set is the average value of the whole lot, and the expectation of sum and sum of expectation are equal. 
+The variance is the spread of the values around the expectation (mean). The variance of the sum is not always the sum of variance.
+
+Standard error of the means quantifies how much a sample mean will vary from one sample to another.
+
+## Mean
+Population mean is represented with mu, which looks kinda like a u.
+Sample mean is represented with x^_ (x bar on top). 
+Pop mean is the mean of the ENTIRE set, while sample mean is the mean of the sample.
+If we want to know if u is a plausible value, we want to find the difference between the sample mean and the pop mean.
+First, we find xbar, the sample mean. Then, find the standard error, and check the difference between SE and xbar - u.
+
+## Standard Error
+The measure of how much variation is likely in a sample mean compared to its population mean. 
+SE = stddev / sqrt(sample size).\
+```{r}
+# sd(vector)
+#std.error(statistic = mean, data = vector)
+```
+## Discrepancies
+Given a fixed u/pop mean and observed sample mean x_, are we asking:
+1. is x_ more than u? positive, 1 sided
+2. is x_ less than u? negative, 1 sided
+3. is x_ significantly different to u? both, 2 sided
+
+We look for specific discrepancies in different cases:
+Checking mL in beer cans - look for negative, where producers are underfilling, and also positive, where people drinking in excess of expectations
+Weight of loaves: look for negative, scammy baker, but don't really care about customer winning a few grams
+
+## Both Discrepancy
+when values in the sample are on both sides of the population mean, we have a both discrepancy. 
+Eg heights in school, u = 170cm, while x = [190, 160, 171, 172]: x_ = 173.It would appear that we have a positive discrepancy, but it is infact a both.
+
+## False Alarm Rate
+alpha is the desired false alarm rate, when we incorrectly reject a given u/pop mean. 0 <=a<=1, smaller is better, eg a = 0.05,.01.
+
+Why allow false alarm rate >0 at all!?
+The you would never reject anything then, even if you should. The test would have no power (p correctly reject H0)
+
+## Quantiles
+To get R to display charts and values, use
+t-values: qt(p, df = k)
+eg a = .05, we take p = 1 - a/2
+normal: qnorm(p)
+chisq: chisq(p, df = k)
+
+## Confidence Interval
+The coverage probability is the probability that the true value is within the confidence interval.
+We want a small non coverage probability (just the inverse), like 1-a.
+
+## p-value
+the p-value is the smallest false alarm rate for which we would reject a given u, and the non-coverage (1-p) for which u is on the boundary of the confidence interval.
+
+## Rejection region
+We define a decision rule to reject H0, where if p < a, we reject H0. For a 2 sided test, there will be rejection regions on both ends of the distribution curve. 
+
+
+# L12
+
+## Types of Errors
+Type I: false positive, reject a true H0
+Type II: false negative, accept a false H0
+
+Power in hypothesis testing: the probability of correctly rejecting the H0.
+
+## Statistical power in one sample t-test
+P(reject H0) = P( abs(x_ - u) / S/sqrt(n) > c)
+Power is 0 <= P <= 1.
+0: test has no ability to correctly reject H0
+1: test will always correctly reject H0.
+Power is almost never 1
+
+## t-statistic
+X_ - u / S/sqrt(n)
+
+## Cohen's d
+Quantifies the size of the difference between effect sizes between two populations.
+d = abs(mean pop1 - mean pop2) / stddev(pop1&2)
+will be [0,1]
+values of .2, .5, .8 indicate small med large effect sizes.
+
+
+# L13
+
+## Paired t-test revision
+Testing the similarity of the mean of two related populations. 
+eg testing for a difference in mean between one leg w placebo and one with chem injection
+
+## Normality
+We always like to assume data is sampled from a normal population. For massive samples, we can rely on CLT to assume the test statistic follows a t distribution, but not for small samples.
+We can check normality using QQ plots and boxplots.
+
+## Central Limit Theorem Normality CLT
+When taking a sample from a large population, regardless of shape of the original data, the random sample is approximately normal. 
+CLT requires random sampling, independence in the sample, and finite variance of the original data.
+
+
+## QQ plot
+We want to see that the points all lie reasonably close to the line. If there are any/several massive outliers, the sample might not be normal.
+```{r}
+# Set a seed for reproducibility
+set.seed(123)
+
+# Generate a random sample of 100 observations from a normal distribution
+random_data <- rnorm(100)
+
+# Create a Q-Q plot to assess normality
+qqnorm(random_data)
+qqline(random_data, col = "red")  # Add a reference line
+
+# Add a title and labels
+title("Q-Q Plot for Normality")
+xlabel <- "Theoretical Quantiles"
+ylabel <- "Sample Quantiles"
+xlabel <- "Theoretical Quantiles"
+ylabel <- "Sample Quantiles"
+
+```
+## Sign test
+Suppose we take a sample from a continuous distribution, we want to check the mean of our sample vs pop.
+H0: u0 = u / usample = upop
+If the population is symmetrical around u0, then each population value minus sample mean should land around 0. Because of the symmetry, the likelihood of Xi - u0 to be +/- is equally likely, 0.5. 
+
+Sign test is non parametric because is makes fewer assumptions, it only looks at observed values, not means/medians. 
+
+```{r}
+#binom.test(c(6,3), p = .05, alternative="greater")
+# c(positives, falses)
+```
+The p-value of a sign test and t-test can give conflicting results when sample size is small.
+
+Sign test is not used as a normality test, but rather as a alternative t test. 
+
+# L14 
+
+## Wilcoxon signed rank test
+Frank Wilcoxon is notably not a New Yorker nor Jewish, still American.
+A sign test ignores alot of factors, such as low power. 
+
+We use ranks, whereby we give each item in a sample a rank, from 1 being the lowest, up to n, being the size of the sample. If there are ties, each tied item is given the average of the other tied items ranks. 
+
+Sample: 1 2 2 5 8 8 8 10
+ranks : 1 2 3 4 5 6 7 8 -> 1 2.5 2.5 4 6 6 6 8
+
+If we get all the items from the sign test, being the sample items - mean, and apply their ranks, we would expect them to be nearly equal for positive and negative sides.
+
+We sum up all the ranks for the positives = W+, and sum up the ranks for negatives, being W-.
+Take W = min(W-, W+).
+If W+ is large, we can reject H0, as there is indication that u > u0, and if W+ small, indicates u < u0.
+
+## p-value in Wilcoxon signed test
+P(W+ >= w+) = P(W+ <= n(n+1)/2 -w+)
+The probability of getting an observed W greater/equal than a W expected according to the null hypothesis is equal to the chance of getting a value smaller than a set critical value, which is based on sample size. 
+n(n+1)/2 is the maximum possible value for W in the W sign test, where n is num of pairs. 
+If n(n+1)/2 -w+ is small it indicates w+ is larger than would be expected for H0, and there is a significant difference between the observations.
+```{r}
+n = 5 # sample size
+q = 0:(n * (n + 1)/2)# possible values for sum of the positive ranks
+probs = dsignrank(q, n)
+names(probs) = q
+mu = n * (n+1)/4
+s2 = n * (n+1) * (2*n+1)/24
+df = data.frame(
+  prob = dsignrank(q, n), 
+  x = q)
+df
+```
+
+## Normal approximation for Wilcoxon sign test
+For a large enough sample, we can approximate the distribution of w. 
+T = w+ - E(W+) / sqrt(var(W+))
+where E(W+) = n(n+1)/4 and var(W+) = n(n+1)(2n+1)/24.
+
+# L15
+
+## Wilcoxon rank sum test
+Non-parametric (doesn't make assumptions) to compare the means of two different samples. They don't have to be normally distributed, but they must have the same distribution, eg left skew. 
+We rank all of the items together, and then sum the item ranks based on sample. If H0, we expect W to be close to the expected value
+
+```{r}
+#the pwilcox function distribution starts from 0, so we need to subtract minw.
+#pwilcox(w - minw, m = nx, n = ny)
+```
+ 
+What the fuck is this
+
+# L16
+
+## Permutation Tests
+Brit called Ronald Fisher testing a lady claiming she can taste whether milk was added before or after tea. Its kinda impractical to test this 100 times, so lets only make 8 cups, with 4 of each. 
+In this instance the test statistic is the number of milk before teas correctly identified. 
+
+The order of the 8 cups is random, and there are 8! =40320 possible orderings, but there are only 8C4 =70 ways to pick which 4 cups had milk added before. 
+
+Assuming random guesses, the probability of getting 0 right is 4C0 * 4C4 = 1, T(1) = 4C1*4C3 = 16, T(2) = 36, T(3) = 16, T(4)=1.
+Remember all of these are the number of ways/70, so P(T(4)) = 1/70 = 0.014.
+
+## Generate permutations
+Since the lady can only manage 8 cups of tea, we generate simulated permutations, 8! of them.
+```{r}
+library(arrangements)
+
+actual_order = c("milk","tea","tea","milk","tea","tea","milk","milk")
+predicted = c("milk", "tea", "tea", "milk", "tea", "tea", "milk", "milk")
+
+#permutations() func generates all permutations
+tea_permutations = permutations(actual_order)
+
+#create an empty list which we'll use to store checked values for each permutation
+check_correct = vector("numeric", length = nrow(tea_permutations))
+for(i in 1:nrow(tea_permutations)) {
+  #init each index of check_correct with 1 or 0 if the permutation matches the prediction
+  check_correct[i] = identical(tea_permutations[i,], actual_order)
+}
+#576 and 0.014
+c(sum(check_correct), mean(check_correct))
+
+```
+576/40320 permutation rows were correct, which gives P(4) = 0.014. 
+
+now lets try again with fishers exact test, should give same result.
+```{r}
+truth = c("milk", "tea", "tea", "milk", "tea", "tea", "milk", "milk")
+predicted = c("milk", "tea", "tea", "milk", "tea", "tea", "milk", "milk")
+tea_mat = table(truth, predicted)
+fisher.test(tea_mat, alternative = "greater")$p.value
+```
+
+## Permutation sampling
+If there are too many permutations, we can use a random sample from them using sample(). This should give a decent approximation
+```{r}
+set.seed(123)
+truth = c("milk","tea","tea","milk","tea","tea","milk","milk")
+B = 10000
+result = vector(length = B) # initialise outside the loop
+for(i in 1:B){
+  guess = sample(truth, size = 8, replace = FALSE) # does the permutation
+  result[i] = identical(guess, truth)
+}
+mean(result)
+```
+
+## Permutation test for 2 independent samples
+Do a t-test, get the t-test statistic with t.test$statistic
+
+Do the permutations, and t_null will give the test statistics of the permuted samples. 
+Take the absolute values of the t_null and test statistic
+Check the difference between the means
+mean(abs(t_null) >= abs(tt$statistic))
+this shows the proportion of permutated test statistic that more extreme than the observed one
+
+```{r}
+dat = PlantGrowth |> filter(group %in% c("ctrl", "trt2"))
+B = 10000 # number of permuted samples we will consider
+permuted_dat = dat # make a copy of the data
+t_null = vector("numeric", B) # initialise outside loop
+for(i in 1:B) {
+  permuted_dat$group = sample(dat$group) # this does the permutation. each sample is just a random order of dat
+  t_null[i] = t.test(weight ~ group, data = permuted_dat)$statistic
+}
+```
+
+## Permutation test for paired sample 
+
+Testing for shift between paired population. Lets measure platelets in 11 people before and after a durry. 
+```{r}
+# Given data
+before = c(25, 25, 27, 44, 30, 67, 53, 53, 52, 60, 28)
+after =  c(27, 29, 37, 36, 46, 82, 57, 80, 61, 59, 43)  
+d = after - before  # Calculate the differences
+
+# Perform a one-sample t-test
+t.test(d)
+
+# Calculate the t-statistic for the original data
+(t0_original = mean(d) / sd(d) * sqrt(length(d)))
+
+n = length(d)  # Number of observations
+
+# Generate all possible sign permutations for a two-sided test
+sign_permute = permutations(c(-1, 1), 11, replace = TRUE)
+
+# Get the dimensions of the sign_permute matrix
+dim(sign_permute)
+
+B = nrow(sign_permute)  # Number of permutations
+
+t_null = vector("numeric", B)  # Initialize a vector to store permuted t-statistics
+
+# Loop over each permutation and calculate permuted t-statistics
+for(i in 1:nrow(sign_permute)){
+  d_permute = d * sign_permute[i,]  # Apply the sign permutation to the differences
+  t_null[i] = mean(d_permute) / sd(d_permute) * sqrt(n)  # Calculate the t-statistic for each permutation
+}
+
+# Calculate the proportion of permuted t-statistics as extreme as the original
+mean(abs(t_null) >= abs(t0_original))
+
+```
+This code performs a two-sided permutation test for paired differences between the "before" and "after" measurements. 
+It first calculates the observed t-statistic for the original data and then generates all possible sign permutations of the differences to create a distribution of permuted t-statistics. 
+The final line calculates the p-value by determining the proportion of permuted t-statistics as extreme as the original and tests whether there is a significant difference between the "before" and "after" measurements
+
+# L17
+
+## - Speed of light
+Canadian oke estimated the speed of light, timed it over 7km 66 times, in 1882. cool
+
+## Estimation vs Hypothesis
+Estimation: a population parameter is unknown. We use sample statistics to generate estimates for it.
+
+Hypothesis: explicit statement about the population parameter. Test statistics are generated to support or reject the hypothesis.
+
+## Confidence intervals
+avoid reporting just an estimate for a sample, include a margin of error.
+margin of error = critical value * SE(estimate)
+critical value aka z-score
+  [shift click for z-score explanation](## Standard errors and confidence intervals for odds ratios)
+
+Point estimates don't convey information about the variability or range of an estimate.
+
+## Confidence level
+
+If the probability of a point estimate falling in an interval of test statistics is 1, it is a 100% confidence interval. 
+P(t1 <= point estimate <= t2) = 1 - a
+if a = 0, the confidence level is 100%, so we choose a to be 0.01 for 99%, .05 for 95%, etc.
+
+This doesn't guarantee a point estimate will be in a range, just that 95% of the possible ones will be.
+Confidence != probability
+
+## Bootstrapping
+A resampling method with replacement, useful when data does not follow a normal distribution.
+also useful for small sample sizes
+non parametric, don't need to make parametric assumptions
+provides answers when no analytic solutions 
+can be used for verification
+asymptotically consistent
+
+## Bootstrap confidence intervals
+the 100% confidence interval of a bootstrapped point estimate is where the interval is between the a/2 and 1-a/2 quantiles in the distribution.
+
+We can get the 95% interval using this, where result = the target metric 
+quantile(result, c(0.025, 0.975))
+
+# L18
+
+Recap
+
+
+# L19
+
+## Multiple testing
+
+That xkcd about the colour of jellybeans and autism, where if you do a t-test 20 times with a = 0.05, one of them is will hit.
+A rejected null hypothesis can't be taken at face value. 
+
+## Erorr rates formulae
+
+False positive rate: null results are accidentally called significant
+number of p-values < .05 when they aren't really / number of tests
+
+Family wise error rate: probability of at least one false positive
+P([a p-value > .05] >= 1)
+
+False discovery rate
+number of false positives / number of rejected hypotheses
+
+## family wise error rate
+The probability of at least one false positive
+
+FWER P(V >= 1), V: number of false positives
+the probability of at least one false positive is 1 - (1- a)^m, m - number of hypotheses
+
+## Bonferroni
+
+makes a new threshold for significance. 
+a* = a / m
+pretty high bar, but keeps FWER <= a. 
+could be too high, but easy to use.
+Usually sufficient
+
+## False discovery rate
+Aim: keep the expected proportion of false positives in the rejected tests close to a
+FDR = E (num false positives / num false negatives)
+
+## Benjamini-Hochberg Procedure
+Most popular correction for performing lots of tests.
+Calculate p-values normally
+order all the values in ascending order
+find max(j* ) where p( j* ) <=  a*j/m
+Reject all H0 where p(H0) <= a(j*/m)
+
+still pretty easy to calculate, slightly lower bar
+allows for more false positives
+doesn't work great with dependence
+
+# L20
+
+## ANOVA
+ANalysis Of VAriance. 
+
+Generalisation of a two sided two sample t test for 3 or more samples.
+
+recap: 3 different procedures for 2 sample t test
+paired, welch, classical/pooled
+
+All use the form X - Y / SE(X - Y), but differ in how standard error is calculated.
+
+Of the 3 methods, the classical requires the most assumptions. 
+The Welch test is the default in R. The paired test can be used if sample sizes are equal
+But classical is the one that generalises to ANOVA, but we must be aware of the assumptions of independence between samples, and equal variance
+
+```{r}
+data(mtcars)
+
+# Perform a one-way ANOVA to test the impact of the number of cylinders on car mpg
+# In this example, we're comparing the mean mpg (miles per gallon) among different cylinder groups (4, 6, and 8)
+# Adjust the formula and dataset as needed for your specific analysis
+anova_result <- aov(mpg ~ cyl, data = mtcars)
+
+# Summarize the ANOVA results
+summary(anova_result)
+
+#p<.05, so means are very different
+
+```
+
+
+## ANOVA vs two sample t test
+
+Purpose: 2 sample t-test compares the means of 2 independent groups, ANOVA is for 3+.
+
+Hypotheses: 2 sample H0: the means are equal, H1: they're not, ANOVA: all group means are equal, H1: at least one group is different, others equal
+
+Test Statistic: 2 sample t test: test statistic, ANOVA: F-statistic, compares group means to variance within groups
+
+Multiple comparisons: 2 sample: when doing multiple t-tests, you need to account for FWER with bonferroni, ANOVA: considers overall already so not needed, but you can use Bonferronis to find which specific group differs.
+
+## ANOVA specifics
+
+H0: all groups have the same mean.
+H1: at least 1 group has a different mean
+Assumed: Samples are independent. Each sample has the same variance. Each sample is normally distributed (or is large enough for CLT)
+Test statistic: t = treatment mean / residual mean
+  treatment mean: variability between group means
+  residual mean: variability within each group
+Decision: if the p-value <= a, reject H0, as at least one group mean is different to the others. 
+
+## Double subscript notation
+i refers to index of the samples
+j refers to index observation within samples
+g is the number of groups
+
+dot notation indicates adding for all, so yi. means sum of all observations j in yi.
+bar over the y is for average, average for sample 4 is \overline{y}4. .
+total of all obs is y..
+average for all observations is \overline{y}..
+
+## General ANOVA decomposition
+partition the total variability in a datset into different sources of variation
+treatment effect: inter-group mean comparison
+residual effect: intra-group mean
+
+## Sum of Squares Total SST
+SST: total sum of squares, represents total variability in the data, without distinguishing between groups. Quantifies deviation of observations from overall mean. 
+
+SST = SSB + SSW
+
+## Inter-group variability/treatment effect
+Measures variation among group means
+SSB = for each group, sum {observations in group * (mean of obs in group - overall mean)^2}
+
+## Intra-group variability/residual effect
+SSW = for each group: sum of all (observations- overall mean observations)^2
+
+# L21
+
+## ANOVA contrasts
+How do we compare 3 different means, H0 is they're all equal.
+
+If p-value <= .05, reject H0, but this doesn't directly tell us which group mean is different. 
+
+A contrast is a linear combination where all coefficients sum to 0, and in ANOVA, a contrast is the linear combination of means. The contrast is used to compare specific groups.
+If H0 is correct, the contrasts will all be 0 too. 
+
+## Calculating contrast
+First, set the coefficients for each group. Set the target group 1, the other target -1, and other groups 0. 
+
+Second, calculate the contrast value. This is the coefficient of A * uA + coeff B * uB ...
+This should come out to c = uA - uB or similar, where uA = mean of A. 
+
+Third, test if the contrast value is statistically significant, like using an F test or t test. 
+
+## Confidence intervals of contrasts
+ok moving on
+
+
+
+
+# L22
+
+## Using residuals to check normality
+Rather than looking at QQ plots we can instead look at ANOVA residuals. If ANOVA assumptions are true the residuals should be normal.
+
+## Multiple comparisons and simultaneous confidence intervals
+When no single group is notable, we consider each pair equally interesting. 
+
+## Bonferroni
+
+## Multiple comparisons: pairwise t test
+
+## Tukey method
+
+## Scheffe method
+
+## Concluding
+ANOVA Ftest might not always be enough, contrasts might be more significant.
+Bonferroni is pretty conservative, Tukeys is less so
+Contrasts must be picked before checking out the data.
+Scheffes method permits unlimitied snooping, checking contrasts afterwards
+
+
+# L23
+
+# L24
+
+# L25
+
+
+# Module 4: Learning and prediction
+
+
+# L26
+
+## Learning
+Supervised = known classes or values, train to predict new
+Unsupervised = unknown, determine groupings
+
+Supervised can be broken to classification or regression
+Classification maps input to output label, regression maps to continuous input
+
+## Simple linear Regression
+aims to predict an outcome Y based on single input predictor. Just a straight line
+Y = population intercept + pop slope * input + error term
+
+## Fitting the line
+aim to minimise the sum of squared residuals
+
+in R, use lm()
+Fitted values are the ones obtained from using the observed values in the model. Residuals are the differences between the observed value and the model's estimated Y.
+
+lm$resudials
+
+## Checking assumptions
+4 assumptions for a linear regression model:
+1. linearity - the relationship between x and Y is linear
+2. independence - all the errors are independent 
+3. homoskedascticity - all the errors have constance variance
+4. normality - all the errors have a normal distribution
+
+## 1. linearity
+before running a regression, plot x/Y and check if its approximately linear. then plot the residuals, they should be symmetric around 0. If there is a distinct pattern, the residuals are non linear. 
+
+## 2. independence
+independence between errors is usually dealt with before data collection. 
+
+## 3. homeskedasticity
+homo = same, skedasticity = spread
+the data should not be clustered, there should be a fairly even spread of data points across the expected distribution.
+
+## 4. normality
+easiest to check a QQ plot of residuals
+
+#L27
+
+
+## interpreting model coefficients
+The intercept is the expected value Y when the input x = 0. 
+example: Y (ozone) = -1.84 + 0.67 * temp, intercept = -1.84
+
+## models with log transformations
+log(Y) = B0 + B1* x : one unit increase in x will make B1* 100% in Y
+Y = B0 + B! * log(x): 1% increase in x makes B1/100 in Y
+log(Y) = B0 + B1* log(x): 1% increase x makes B1% in Y
+
+## Inference in regression models
+Normally for linear regression H0: B1 = 0, H1: B1 != 1
+B1 is the coeff of input.
+
+T = 
+
+
+
+
+## Relative Risk
+Definition: the ratio of the probability of an outcome in an exposure group divided by the likelihood in an unexposed group
+eg nuclear exposure gives .8 probability of bad bad, but no exposure gives .001 probability of bad bad. RR = .8/.001 = 800
+
+Can be calculated in a retrospective study, but you need to know the entire cohort/group that had the exposure.
+
+## T test
+Assumption on sample: independent and identically distributed (iid)
+= sample_mean - expected_mean / (stddev(sample)/sqrt(n_samples))
+
+
+
+
+
+# 
+
