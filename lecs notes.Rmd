@@ -775,6 +775,14 @@ Fitted values are the ones obtained from using the observed values in the model.
 
 lm$resudials
 
+## The lm() function for simple linear 
+```{r}
+# formula = the target var ~ the predicting var. data = the dataset
+model = lm(formula = mpg ~ hp, data = mtcars)
+
+```
+
+
 ## Checking assumptions
 4 assumptions for a linear regression model:
 1. linearity - the relationship between x and Y is linear
@@ -795,8 +803,15 @@ the data should not be clustered, there should be a fairly even spread of data p
 ## 4. normality
 easiest to check a QQ plot of residuals
 
+
 #L27
 
+## Notation
+B0 = intercept
+B1 = input coefficient which is also the line slope
+\hat{Y} = predicted value
+Y = actual value
+epsilon = residuals
 
 ## interpreting model coefficients
 The intercept is the expected value Y when the input x = 0. 
@@ -811,7 +826,480 @@ log(Y) = B0 + B1* log(x): 1% increase x makes B1% in Y
 Normally for linear regression H0: B1 = 0, H1: B1 != 1
 B1 is the coeff of input.
 
-T = 
+T = slope of line / SE(slope line) [n-2 degrees freedom]
+We reject H0 if p < .05, BUT look at the data, check for other assumptions before relying on p-values.
+
+## Confidence intervals
+as usual.
+B1 +- t* SE(B1) where t*: a/2 quantile from t distribution with n-2 DF.
+
+Use confint(linear model name)
+
+
+## In sample performance
+Total sum of squares = 
+SS for regression line: sum(hatY - mean Y)^2 +
+SS for residuals: sum(y - expected y)^2
+
+## Coefficient of determination r^2
+The square of the correlation coefficient aka coefficient of determination measures the proportion of total variation explained by the linear regression model. 
+
+"one minus the proportion of variation not explained by the model"
+r^2 = 1 - resid SS / total SS
+
+it is a % of variation in y as explained by x.
+
+
+## Multiple regression
+What if we ask if more factors can be used to predict? eg if temperature, wind, and radiation can predict log(ozone)?
+
+Y = B0 + B1 * x2 + B2 * x2 + B3 * x3 ... + e
+
+log(ozone) = B0 + B1* radiation + B2 * temp + B3 * wind + epsilon
+
+Again, just use lm()
+```{r}
+multireg = lm(formula = mpg ~ cyl + hp + qsec, data = mtcars)
+summary(multireg)$coefficients |> round(3)
+
+# the estimates are the coeffs
+# Y = 55 - 2.3*cylinders - 0.04*horsepower - 0.9*quartermile time
+
+#this is probably a bad example, because var are like certainly dependant
+summary(multireg)$r.squared
+```
+Often written in matrix formula:
+Y = X*B + e
+where Y, X, B are vectors.
+
+## Interpretation of Multiple regression coefficients
+The estimated coefficients are conditional on the other coefficients/inputs not varying. 
+Meaning the -2.2 coefficient of cylinder count is conditional on horsepower and 1/4mile time NOT changing, so any calculation for delta cyclinder must assume that nothing else is being adjusted. 
+
+example: increasing cylinder count by 1 decreases mpg by 2.2%, holding hp and qsec constant. 
+increasing hp by 1 decreases mpg by .04%, holding cyl and qsec constant. 
+```{r}
+summary(multireg)$r.squared
+```
+The r^2 is .77, so 77% of the variance in Y is explained by the regression model.
+
+
+# L28
+
+## Prediction
+Once we have a model, we can plug in inputs to find an expected value.
+
+```{r}
+fakef1car_obs = data.frame(cyl = 8, hp = 200, qsec = 25)
+print("prediction interval for a new datapoint")
+predict(object = multireg, newdata = fakef1car_obs, interval = "prediction", level = .9)
+
+# can also use interval = "confidence"
+print("confidence interval for a datapoint")
+predict(object = multireg, newdata = fakef1car_obs, interval = "confidence", level = .9)
+# fit      lwr      upr
+# 1 7.6883 -0.23854 15.61514
+# fit: the predicted value, 7.6 mpg
+# lower and upper bounds
+```
+## prediction vs confidence interval
+the prediction interval predicts an individual number, but confidence interval predicts a mean value. 
+prediction is for a new individual datapoint, confidence is for a range of plausible values for certain conditions. 
+
+prediction: y +- t* sqrt(var(residual y))
+confidence: y +- t* sqrt(var(y))
+
+## Categorical predictors
+using the mpg dataset, for fuel economies, and the vehicle class factor.
+```{r}
+data("mpg", package = "ggplot2")
+lm_mpg = lm(cty ~ class, data = mpg)
+anova_mpg = aov(cty ~ class, data = mpg)
+```
+
+lm and ANOVA do the same thing/same results, same errors. 
+lm is better for coefficients, linear data, and specific hypotheses.
+ANOVA is for group differences
+
+## marginal means and emmeans()
+marginal means aka least squares means or adjusted means are for estimating means for each level of a categorical predictor, that also accounts for the effects of other factors in the model. 
+
+```{r}
+library(emmeans)
+data("mpg", package = "ggplot2")
+lm_mpg = lm(cty ~ class, data = mpg)
+em_mpg = emmeans(lm_mpg, ~class)
+em_mpg
+```
+
+emmeans() estimated marginal means. 
+function to compare marginal means for different combinations of factors, especially for categorical predictors. the emmean() will output emmean which we can use to easily compare the different categories
+
+
+# L29
+
+## Model Selection
+
+Looking for how to identify a 'good' model, including number of variables, and which to keep. 
+
+
+We use the UScrime dayaset to model 15 potential explanatory variables
+
+```{r}
+data("UScrime", package = "MASS")
+#Using the . notation includes all variables
+full_model = lm(y ~ ., data=UScrime)
+
+```
+When using the full model, the model is based on all variables combined, so we can't chuck several variables based on their p values, because they are p-values dependant on the combination of the whole model. 
+
+## Drop 1
+goes through each variable and tests what happens if it gets dropped
+```{r}
+drop1(full_model, test="F")
+```
+Variable So has the largest p-value so we test dropping that.
+```{r}
+model2 = update(full_model, . ~ . -So)
+```
+
+Repeat dropping different variables. We won't usually do this manually.
+
+
+
+
+## Akaike information criterion
+AIC = n * log (residual sum of squares / n) + 2*p
+
+smaller is better. We are penalising adding more variables that don't reduce the residual sum of squares as much as possible. 
+
+```{r}
+#Uses AIC, not p-values
+step.back.aic = step(full_model, direction = 'backward', trace = FALSE)
+```
+
+This function does this automatically, and drops variables until the 'no-drop' AIC amount is the smallest AIC, which indicates that dropping anything else will only increase AIC. 
+
+## Backwards v forwards
+sometimes we can't fit the full model, if we have more variables than observations, it simply won't work, so we start with empty model and add variables.
+```{r}
+empty_model = lm(y ~ 1, data=UScrime)
+#we need to add another scope parameter, which defines the limits of the variables the model can include. this will usually be null/full model.
+step.fwd.aic = step(empty_model, scope = list(lower=empty_model, upper = full_model), direction = 'forward', trace=FALSE)
+```
+Forwards and backwards models have given different models! which do we pick?!
+
+1. can pick the simplest/less variables
+2. adjusted R2 could be good if there is some different
+3. if the AIC is significantly different
+
+## Forwards selections
+Start with empty model, add one var at a time
+use the add1() function.
+```{r}
+m0 = lm(y ~ 1, data = UScrime)
+add1(m0, scope = full_model, data = UScrime, test = "F", trace = FALSE)
+```
+There is also an option for the step function that allows both
+step.both.aic()
+When using both, it will make a slight difference if you start from empty or full model.
+
+## Exhaustive Searches
+
+Look at every single possible model, combination, outside of stepwise methods.
+Uses some branching logic to eliminate checking EVERYTHING.
+This package outputs all the different models for num of vars. 
+
+```{r}
+exhaustive = leaps::regsubsets(y ~ ., data=UScrime, nvmax = 15)
+summary(exhaustive)$outmat
+# note that size 8 drops GDP and picks up U1, stepwise can't go back and undo an addition of var
+```
+
+
+# L30
+
+
+## in sample performance
+
+Testing model on data used in the model itself. This doesn't help testing overfitting. Same ideas as not using split data for ML model, kinda silly, just confirms the code didn't upfucky.
+
+Can be done by comparing partial/one var linear regression to full models.
+
+
+## Out of sample performance
+
+Test on data not used in the model. Basically just use train test split like every other method.
+```{r}
+#loads data
+data(environmental, package = "lattice")
+#adds a new lozone var that is log(ozone)
+environmental = environmental |> 
+  mutate(lozone = log(ozone))
+
+n = nrow(environmental)
+
+#num of training datapoints to create, 80% of num of rows
+n_train = floor(0.8*n)
+#test is the remaining 20%
+n_test = n - n_train
+#vector of group labels using repetition
+grp_labs = rep(c("Train","Test"), times = c(n_train, n_test)) 
+#assign group labels to the environmental data
+environmental$grp = sample(grp_labs)
+#separate the train data into a sub dataset
+train_dat = environmental |> filter(grp == "Train")
+#linear model for train data with temperature var
+lm_simple_train = lm(lozone ~ temperature, data = train_dat)
+#lm for full vars
+lm_full_train = lm(lozone ~ radiation + temperature + wind, data = train_dat)
+#separate test subdataset
+test_dat = environmental |> filter(grp == "Test")
+#prediction for simple lm
+simple_pred = predict(lm_simple_train, newdata = test_dat)
+#pred for full model
+full_pred = predict(lm_full_train, newdata = test_dat)
+
+#we'd like to see greater accuracy/lower errors on the full_pred than simple_pred
+#Use Root mean square error.
+simple_mse = mean((test_dat$lozone - simple_pred)^2)
+sqrt(simple_mse)
+full_mse = mean((test_dat$lozone - full_pred)^2)
+sqrt(full_mse)
+
+#Mean absolute error is less influenced by outliers than RMSE
+simple_mae = mean(abs(test_dat$lozone - simple_pred))
+simple_mae
+full_mae = mean(abs(test_dat$lozone - full_pred))
+full_mae
+```
+
+## Cross validation
+
+Comp3308 anyone? 
+k-fold cross validation. 
+divide data into k subsets, for k in ksubsets, k = test, train on the rest, test on k.
+average the error rates over k runs.
+
+```{r}
+set.seed(2)
+n = nrow(environmental)
+
+environmental$grp = NULL # remove the grp variable we added previously
+# Create a vector of fold IDs (11 folds)
+fold_id <- c(1, rep(1:10, each = 11))
+
+# Randomly assign fold IDs to each observation in the "environmental" dataset
+environmental$fold_id <- sample(fold_id, replace = FALSE)
+#now each row has a column fold_id that is 1-11.
+
+#calc model, leave 1 fold out, preds and error rates
+k = 10
+simple_mse = full_mse = vector(mode = "numeric", length = k)
+simple_mae = full_mae = vector(mode = "numeric", length = k)
+for(i in 1:k) { 
+  test_set = environmental[fold_id == i,]
+  training_set = environmental[fold_id != i,]
+  simple_lm = lm(lozone ~ temperature, data = training_set)
+  simple_pred = predict(simple_lm, test_set)
+  simple_mse[i] = mean((test_set$lozone - simple_pred)^2)
+  simple_mae[i] = mean(abs(test_set$lozone - simple_pred))
+  full_lm = lm(lozone ~ radiation + temperature + wind, data = training_set)
+  full_pred = predict(full_lm, test_set)
+  full_mse[i] = mean((test_set$lozone - full_pred)^2)
+  full_mae[i] = mean(abs(test_set$lozone - full_pred))
+}
+
+#aggregate errors over folds, find ave, rmse
+cv_res = tibble(simple_mse, full_mse, 
+                simple_mae, full_mae)
+cv_sum_res = cv_res |> 
+  summarise(
+    across(.cols = everything(), 
+           mean)
+  )
+
+sqrt(cv_sum_res[,1:2])
+```
+
+caret library - Classification And REgression training
+```{r}
+library(caret)
+cv_full = train(
+  lozone ~ radiation + temperature + wind, environmental,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 10,
+    verboseIter = FALSE
+  )
+)
+cv_full
+```
+
+# L31
+
+## Logistic regression
+
+Using the titanic survival stats, lets try model the relationship between sex, passenger class, and survival. There def is a relationship.
+
+We can't really use linear model. Ideally, the Y predictor variable is normally distributed. If we're trying to predict a binary var, it doesn't work, so we'll use a logistic regression. 
+
+If we try fit a straight line on a binary plot, it really doesn't work, and even if we let it curve off at the top and bottom, it still isn't very close. 
+
+Modelling p values is tricky to put a straight line through, but its bounded by 0,1/
+Odds = p/1-p, no longer bound by [0,1], but looks more exponential, so def no straight line. 
+log(odds) range is symmetrical around 0, eg [-4,4], and is a straight line. 
+We'll say Y given x follows a Bernoulli distribution, and is dependent on the observed values and coefficients. 
+
+## Bernoulli distribution
+
+discrete probability distribution. represents random var that has a binary outcome. 
+P(X = x) = p^x * (1-p)^1-x
+where X is the outcome
+p is prob(X=1)
+1-p is prob(X=0)
+x is 0 or 1
+
+recap: odds = P(E)/1-P(E)
+
+## logistic regression
+
+```{r}
+library(tidyverse)
+#install.packages("vcdExtra")
+data("Titanicp", package = "vcdExtra")
+
+x = Titanicp %>% mutate(survived = ifelse(survived == "survived", 1, 0))
+
+#generalised linear model
+glm1 = glm(survived ~ pclass + sex + age, family = binomial, data = x)
+summary(glm1)
+```
+z-value in glm is similar to T-value in a lm. It assess significance of estimated coefficients, and is the number of standard deviations that the estimate is different from the H0 value. z = estimate/std error, same as T-score in lm. 
+So bigger z-value is more significant. 
+
+The final model would be written down as 
+logit(p) = 3.5 - 1.3* 2ndclass -2.3* 3rdclass -2.5 * male -.03 * age
+
+logit(p)?
+
+= log(p/1-p)
+aka log of odds ratio
+
+
+## Evaluating performance for logistic regression
+
+we need to pick a threshold to round the logit results, usually 0.5. 
+We can also add the predictions to the original dataset columns, so that we can compare easily. 
+
+p = 0.5? rounded to 0, but not ideal. 
+
+Resubstitution error rate is basically just in sample perfomance checking.
+Proportion of observations incorrectly measured. 
+
+Out of sample performance would just be k-fold CV, same is in linear regression. 
+
+## Confusion matrix
+
+matrix of prediction, and counts. 
+we can count the successful predictions, and separate for survivors, deaths, and misprediction rate for each. 
+
+
+# L32
+
+## Decision trees
+
+remember COMP3308? 
+"determines predicted outcome based on series of questions/conditions"
+Iris dataset gives flower measurements and species, lets try classify species based on measurements. 
+
+rpart package - recursive paritioning, to identify dependent var and precitive variables.
+```{r}
+library(rpart)
+library(rpart.plot)
+tree = rpart(Species ~ ., data = iris, method = "class") #class meaning classification tree
+tree
+rpart.plot(tree)
+```
+Alternative visualisation with partykit, partytitioning tool
+```{r}
+# install.packages("partykit") # A Toolkit for Recursive Partytioning
+library(partykit)
+plot(as.party(tree))
+```
+
+
+
+## Building a decision tree
+
+the algo look for the most divisive/complete separations in the data. In the following, draw a line for petal length < 2.5, and then petal width > 1.75
+```{r}
+p1 = iris |> ggplot() +
+  aes(x = Petal.Length, 
+      y = Petal.Width, 
+      colour = Species) + 
+  geom_point(size = 4)
+p1
+```
+
+there is a complexity parameter that determines if the new split sufficiently improves the predictive power or not
+
+
+## Using the DT
+
+can use the predict() function
+predict(tree_name, data_frame, type="class")
+
+
+## Decision tree in sample performance
+
+As before, make a confusion matrix. 
+
+```{r}
+library(caret)
+predicted_species = predict(tree, type = "class")
+confusionMatrix(data = predicted_species, reference = iris$Species)
+```
+
+Remember 1 rule algorithm? eg for the titanic survivors, assume everyone dies lol, you get accuracy of 809/(809+500) = 62%
+always consider a null model.
+
+```{r}
+# Step 1: Select the specified columns (survived, sex, age, pclass) from the Titanicp data frame
+titanic_complete = Titanicp |> select(survived, sex, age, pclass)
+
+# Step 2: Remove rows with missing values (NA) from the selected columns
+titanic_complete = titanic_complete |> drop_na()
+
+# Step 3: Train a model using the rpart method (recursive partitioning) for binary classification
+#         The response variable is 'survived', and predictors are 'sex', 'age', and 'pclass'
+#         Method used for training is "cv" (cross-validation) with 10 folds
+#         This uses the train function from the caret package
+trained_model = train(
+  survived ~ sex + age + pclass,           # Formula specifying the model
+  data = titanic_complete,                 # Training data
+  method = "rpart",                        # Method for training (rpart: recursive partitioning)
+  trControl = trainControl(method = "cv", number = 10)  # Cross-validation with 10 folds
+)
+trained_model
+
+#outputs the complexity parameters, 0.16 optimal. feed this back into for final model
+titanic_final = rpart(survived ~ sex + age + pclass, data = titanic_complete, 
+                      control = rpart.control(cp = 0.016))
+plot(as.party(titanic_final))
+```
+
+## DT weaknesses
+
+can be very complex too quickly
+without a complexity penalty will overfit until 100% accuracy
+can only make decisions parallel to axes
+overfitting in this case is just modelling noise/outliers
+
+
+## Random forest
+
+
 
 
 
