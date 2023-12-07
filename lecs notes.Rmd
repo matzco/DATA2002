@@ -1296,8 +1296,152 @@ without a complexity penalty will overfit until 100% accuracy
 can only make decisions parallel to axes
 overfitting in this case is just modelling noise/outliers
 
-
 ## Random forest
+
+1. choose the number of decision trees, number of variables
+2. random select rows WITH replacement
+3. random select the vars from the data
+4. build a decision tree
+5. repeat the procedure
+6. predict by majority rule
+
+randomForest::randomForest() in native R defaults for 500 trees using sqrt(count_vars) per tree
+
+```{r}
+library(randomForest)
+iris_rf <- randomForest(Species ~ ., iris)
+iris_rf
+```
+
+
+# L33
+
+## Nearest Neighbours
+
+logistic regression doesn't work for data with perfect separation, which is when independent variables perfectly predict outcome. 
+or when there is a non-linear combination of predictors
+
+decision trees can be used for >2 classes, but they can be complicated, and only draw boundaries parallel to the axes
+
+k-NN is non-parametric: doesn't follow a specific shape. We vote on the class based on the nearest k neighbours
+
+euclidean distance: sqrt(difference between coords)
+
+kNN is easy to use, implement. doesn't need any preprocessing of data
+
+knn_k3 = knn(train = data, test = new.data, cl= y, k = 3, prob = TRUE)
+
+## kNN +/-
+
++ simple to implement, 
+performance improves with more samples, 
+uses local information, 
+easily parallelised
+- only really works for quantitative data, categorical doesn't really work
+can be slow, especially for new predictions
+large storage requirements
+high dimensions reduce accuracy
+needs turning for k, small makes overfit
+
+## Performance
+
+in sample uses confusion matrix. good to compare for different values of k
+
+out of sample, use folds, and check different values for k
+
+
+# L34
+
+## Clustering
+
+in a set of scattered points, group them by proximity into clusters, which are all of the same class
+
+##k-means clustering
+
+1. choose a number k, will be number of clusters/classes
+2. assign random[1,k] to each observation
+3. for each k, compute the cluster centroid/center point
+4. for each observation, reassign it to the closest centroid
+repeat 3,4 until no more changes occur
+
+kmeans_algo = kmeans(data, k = 2)
+
+## hierarchical clustering
+
+produces a tree or dendogram (upsidedown tree of lines splitting)
+
+They avoid specifying how many clusters/classes to begin with
+can be built bottom up/agglomerative clustering, or top down with divisive clustering
+
+## clustering measures
+
+between clusters
+
+single/minimum
+smallest possible distance between individual point of a cluster to another
+
+complete/max
+farthest point of cluster to farthest of another
+
+centroidal
+distance between centroids
+
+average/mean
+average distance of each observation to each obs in the other cluster
+
+euclidean distance uses sqrt all
+manhattan distance uses a grid, where euclidean will cut through corners/angle
+
+## +/- hierarchical clustering
+
++
+don't need to know number of clusters
+can cut the hierarchy at any level to get any number, more or less
+easy to interpret
+deterministic = always the same, definitive
+
++ kmeans
+can be faster
+nice theoretical framework
+can incorporate new data/reform clusters really easily
+
+
+# L35
+
+## Dimension reduction - principal component analysis
+
+
+https://stats.stackexchange.com/questions/2691/making-sense-of-principal-component-analysis-eigenvectors-eigenvalues
+space expands exponentially with dimension
+data is easier to work with in lower dimensionality, something math1004?
+
+PCA produces a low dimension representation of a dataset
+finds a sequence of linear combinations of variables that account for maximal variance in the data, and are mutually uncorrelated
+
+
+
+## first principal component
+
+make first principal component which is a combination/approximation of all the original predictors, in a linear combination
+
+typically we scale our predictors first, like in k-nn and clustering, different scales throw stuff off a bit. We want to maximise variance, so that the PCA makes it easier to distinguish between all the different variables. 
+if the variables are standardised, they have a mean 0 and stddev 1.
+
+if they are standardised the total variance is just p where p = num of variables
+
+## Choosing the number of principal components
+
+proportion of variance explained per PC
+Var of PCm = Vm / TV where m is the PC#
+
+cumulative
+
+you're looking for the point where the amount of variance takes a big drop, because from there, the variance explained by adding PCs diminishes to residuals/outliers.
+
+```{r}
+#track_pca = prcomp(data, center = TRUE, scale = TRUE)
+#center and scale the data so that it is standardised, mean 0 var 1 
+```
 
 
 
@@ -1314,7 +1458,11 @@ Can be calculated in a retrospective study, but you need to know the entire coho
 Assumption on sample: independent and identically distributed (iid)
 = sample_mean - expected_mean / (stddev(sample)/sqrt(n_samples))
 
+## <- vs =
 
+<- is for assigning values/objects to variables.
+matrix(1, nrow = 2) makes a 2 row matrix
+matrix(1, nrow <- 2) makes a matrix 2, but also creates a variable called nrow = 2
 
 
 
