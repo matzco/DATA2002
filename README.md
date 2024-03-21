@@ -1,2 +1,2 @@
 # data2002
-stats course using R
+notes for a stats course using R
